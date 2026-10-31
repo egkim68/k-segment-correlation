@@ -17,7 +17,8 @@ This page shows how the segment correlations in the paper are calculated. The sa
 5. Test whether the corrected values differ with `kseg_boot` (bootstrap test).
 
 ```python
-import numpy as np
+import numpy as np                 # needed by segment_r
+import statsmodels.api as sm        # used only to load the example data
 
 def segment_r(x, y, K=3):
     x, y = np.asarray(x, float), np.asarray(y, float)
@@ -35,12 +36,10 @@ def segment_r(x, y, K=3):
                     round(float(u), 2), round(float(rc), 2)))
     return out
 
-# Example (replace the file and column names with your own data)
-import pandas as pd
-data = pd.read_csv("faithful.csv")
+# Example: Old Faithful data from R, loaded by statsmodels (or use your own data)
+data = sm.datasets.get_rdataset("faithful").data
 for row in segment_r(data["eruptions"], data["waiting"], K=3):
     print(row)
-
 # Output:
 # (1, 91, 0.23, 5.61, 0.8)
 # (2, 89, 0.6, 2.76, 0.9)
@@ -55,4 +54,4 @@ res = kseg_boot(data["eruptions"].values, data["waiting"].values.astype(float), 
 print(res["rc"], res["p_boot"])   # same segment correlations; p near 0.16 (varies slightly with the random seed)
 ```
 
-Run `python3 get_data.py .` first to download faithful.csv.
+The example loads the Old Faithful data directly from R's datasets with statsmodels, so no data file is needed.
