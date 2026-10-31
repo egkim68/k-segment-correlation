@@ -11,6 +11,9 @@ from kseg_boot import kseg_boot
 res = kseg_boot(x, y, K=3, B=999)   # corrected segment correlations, Q, bootstrap p value
 ```
 
+
+A step-by-step guide to calculating segment correlations, with a worked example, is in [HOW_TO.md](HOW_TO.md).
+
 ## Reproduce
 
 Python 3.13 with NumPy, SciPy, pandas, statsmodels, and matplotlib.
