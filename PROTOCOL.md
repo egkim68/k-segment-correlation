@@ -65,10 +65,14 @@ Python with NumPy, SciPy, and statsmodels. Figures as PNG files from a separate 
 
 ## Amendments
 
-Amendment 1 (2026-10-30, after the confirmatory run; real-data illustration only). The tie rule counted a boundary as tied when its value was shared by more than 5% of a segment's cases. In the small faithful data (68 cases per segment), this flagged values shared by only four eruptions. The rule now also requires at least 10 tied cases. The simulation, which uses continuous data, is unaffected.
+Amendment 1 (2026-10-30, after the confirmatory run; real-data illustration only). The tie rule counted a boundary as tied when its value was shared by more than 5% of a segment's cases. In the small faithful data (68 cases per segment), this flagged values shared by only four eruptions. The rule now also requires more than 10 tied cases. The simulation, which uses continuous data, is unaffected.
 
 Amendment 2 (2026-10-30, after the confirmatory run; real-data illustration only). A fourth illustration was added, Galton's family heights (GaltonFamilies in the R package HistData, sons only, n = 481), to show a real case in which one correlation may be enough. Fathers' heights against sons' heights are also analyzed as a check of the tie rule. The simulation and the first three illustrations are unchanged, as the new analyses run after them with the same random number stream.
 
 Amendment 3 (2026-10-31, after the confirmatory run; descriptive results only). The design was run once more at n = 2,000 for all 15 pattern-by-correlation conditions and all K (confirm_n2000.py; seeds [303, i * 10 + 4], not used in the main run), to refine the guidance on cases per segment between n = 1,000 and n = 5,000. Hypotheses H1 to H6 are judged on the original four sample sizes only.
 
 Amendment 4 (2026-10-31, after the confirmatory run; real-data illustration only). As gapminder links the 12 years of each country, a cluster bootstrap by country was added (cluster_gapminder.py, seed 606), in which the residuals of each country are resampled as one block. Further analyses run at the same time (non-normal errors, combined standard tests, segments of Y) are reported in a separate companion study and are not part of this paper.
+
+## Revision (2026-11-07, after peer review; exploratory)
+
+Analyses requested by the reviewers, not part of the confirmatory protocol: mean and median bias of corrected segment correlations under Shapes A and E, the share of null samples with a range above 0.10, coverage of 95% within-segment percentile intervals, and rejection rates of an equal-slope F test (`revision_sim.py`, seed 1107); intervals, the equal-slope test, and a wild cluster bootstrap by country (Gapminder) and family (Galton) for the illustrations (`revision_illustration.py`, seed 1108). The wild cluster bootstrap replaces the block bootstrap of Amendment 4. The cut-off of 0.10 for the range was dropped in favor of the intervals. Rejection rates with segments formed on Y were added (`ydirection.py`, seed 1110). Results of `supp.py` (Amendment 4) are reported in Document S2.

@@ -7,7 +7,11 @@ from scipy import stats
 
 def _segments(x, K):
     edges = np.quantile(x, np.linspace(0, 1, K + 1))
-    return np.clip(np.searchsorted(edges, x, side="right") - 1, 0, K - 1)
+    seg = np.clip(np.searchsorted(edges, x, side="right") - 1, 0, K - 1)
+    small = np.bincount(seg, minlength=K) < 3
+    if small.any():   # heavy ties can leave a segment (almost) empty
+        raise ValueError(f"segment(s) {[int(i) + 1 for i in np.flatnonzero(small)]} have fewer than 3 cases; use a smaller K")
+    return seg
 
 
 def _stats(x, Y, seg, K, S):
@@ -39,23 +43,43 @@ def kseg_boot(x, y, K, B=199, rng=None):
     return dict(rc=rc[0], Q=Q[0], p_chi2=stats.chi2.sf(Q[0], K - 1), p_boot=p_boot, range_rc=rc[0].max() - rc[0].min())
 
 
-def kseg_boot_cluster(x, y, K, groups, B=999, rng=None):
-    """Cluster version: residuals are resampled as whole blocks, one block per cluster (e.g., country or family).
-    Blocks are drawn with replacement among clusters of the same size and keep their internal order."""
+
+def segment_ci(x, y, K, B=999, level=0.95, rng=None):
+    """Percentile intervals for each corrected segment correlation.
+    Cases are resampled within each segment; the segments and the full-sample SD of x are held fixed."""
     rng = rng or np.random.default_rng()
-    x = np.asarray(x, float); y = np.asarray(y, float); groups = np.asarray(groups)
+    x = np.asarray(x, float); y = np.asarray(y, float)
+    seg = _segments(x, K); S = x.std(ddof=1); rcs = np.empty((B, K))
+    for k in range(K):
+        idx = np.flatnonzero(seg == k); draw = idx[rng.integers(0, len(idx), (B, len(idx)))]
+        xs, ys = x[draw], y[draw]
+        xc = xs - xs.mean(1, keepdims=True); yc = ys - ys.mean(1, keepdims=True)
+        r = (xc * yc).sum(1) / np.sqrt((xc ** 2).sum(1) * (yc ** 2).sum(1))
+        u = S / xs.std(1, ddof=1)
+        rcs[:, k] = r * u / np.sqrt(1 - r ** 2 + r ** 2 * u ** 2)
+    a = (1 - level) / 2
+    return dict(lo=np.quantile(rcs, a, 0), hi=np.quantile(rcs, 1 - a, 0))
+
+
+def kseg_wild_cluster(x, y, K, groups, B=999, rng=None):
+    """Wild cluster bootstrap for linked cases (e.g., countries or families): every case keeps its own residual,
+    and the residuals of one cluster are multiplied by the same random sign (+1 or -1)."""
+    rng = rng or np.random.default_rng()
+    x = np.asarray(x, float); y = np.asarray(y, float)
     seg = _segments(x, K); S = x.std(ddof=1)
     rc, Q = _stats(x, y[None, :], seg, K, S)
     b1, b0 = np.polyfit(x, y, 1); fit = b0 + b1 * x; res = y - fit
-    idx = {g: np.flatnonzero(groups == g) for g in np.unique(groups)}
-    by_size = {}
-    for g, ix in idx.items(): by_size.setdefault(len(ix), []).append(ix)
-    Ystar = np.empty((B, len(x)))
-    for b in range(B):
-        e = np.empty(len(x))
-        for size, blocks in by_size.items():
-            pick = rng.integers(0, len(blocks), len(blocks))
-            for target, src in zip(blocks, pick): e[target] = res[blocks[src]]
-        Ystar[b] = fit + e
-    _, Qb = _stats(x, Ystar, seg, K, S)
+    _, gi = np.unique(np.asarray(groups), return_inverse=True)
+    signs = rng.choice([-1.0, 1.0], (B, gi.max() + 1))
+    _, Qb = _stats(x, fit[None, :] + signs[:, gi] * res[None, :], seg, K, S)
     return dict(rc=rc[0], Q=Q[0], p_boot=(1 + (Qb >= Q[0]).sum()) / (B + 1))
+
+
+def equal_slope_test(x, y, K):
+    """F test of one common slope against separate slopes in the K segments (separate intercepts in both)."""
+    x = np.asarray(x, float); y = np.asarray(y, float)
+    seg = _segments(x, K); D = np.eye(K)[seg]
+    rss = lambda X: ((y - X @ np.linalg.lstsq(X, y, rcond=None)[0]) ** 2).sum()
+    r0, r1 = rss(np.column_stack([D, x])), rss(np.column_stack([D, D * x[:, None]]))
+    df1, df2 = K - 1, len(x) - 2 * K
+    return stats.f.sf(((r0 - r1) / df1) / (r1 / df2), df1, df2)
