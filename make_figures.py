@@ -33,17 +33,22 @@ ax[1].xaxis.set_major_formatter(matplotlib.ticker.FuncFormatter(lambda v, _: f"{
 fig.tight_layout(); fig.savefig(os.path.join(F, "Figure_5.png"), dpi=DPI); plt.close(fig)
 
 # Figure 2: bias of uncorrected and corrected segment correlations (pattern A)
+# N = 5000 is drawn first with open markers, N = 1000 on top with filled markers, so both series stay visible
 b = pd.read_csv(os.path.join(O, "bias.csv"))
 fig, ax = plt.subplots(figsize=(4.6, 2.9))
-for n, ls in [(1000, "-"), (5000, "--")]:
-    x = b[b.n == n]
-    ax.plot(x.K, x.bias_r, marker="o", color=C["unc"], ls=ls, lw=1.2, label=f"Uncorrected, N = {n:,}")
-    ax.plot(x.K, x.bias_rc, marker="s", color=C["boot"], ls=ls, lw=1.2, label=f"Corrected, N = {n:,}")
-ax.axhline(0, color="black", lw=.6); ax.set_xticks(Ks); ax.set_xlabel("Number of segments K")
-ax.set_ylabel("Mean segment r minus true correlation"); ax.legend(frameon=False, fontsize=7)
+for n, ls, filled in [(5000, "--", False), (1000, "-", True)]:
+    x = b[b.n == n]; ms = 4 if filled else 8
+    for col, mk, key, lab in [("unc", "o", "bias_r", "Uncorrected"), ("boot", "s", "bias_rc", "Corrected")]:
+        ax.plot(x.K, x[key], marker=mk, color=C[col], ls=ls, lw=1.2, ms=ms, markerfacecolor=C[col] if filled else "white",
+                markeredgewidth=1.0, label=f"{lab}, $N$ = {n}", zorder=3 if filled else 2)
+h, l = ax.get_legend_handles_labels()
+order = [2, 0, 3, 1]  # N = 1000 entries first
+ax.axhline(0, color="black", lw=.6); ax.set_xticks(Ks); ax.set_xlabel("Number of segments $K$")
+ax.set_ylabel("Mean segment $r$ minus true correlation")
+ax.legend([h[i] for i in order], [l[i] for i in order], frameon=False, fontsize=7)
 fig.tight_layout(); fig.savefig(os.path.join(F, "Figure_2.png"), dpi=DPI); plt.close(fig)
 
-# Figure 3: Type I error rates, bootstrap and chi-square references (patterns A and E, N = 1,000)
+# Figure 3: Type I error rates, bootstrap and chi-square references (patterns A and E, N = 1000)
 r = pd.read_csv(os.path.join(O, "rates.csv"))
 fig, ax = plt.subplots(1, 2, figsize=(6.3, 2.6), sharey=True)
 for a, p, t in zip(ax, "AE", ["(a) Normal X", "(b) Skewed X"]):
@@ -51,18 +56,22 @@ for a, p, t in zip(ax, "AE", ["(a) Normal X", "(b) Skewed X"]):
     a.plot(x.index, x.rb, marker="s", color=C["boot"], lw=1.2, label="Bootstrap reference")
     a.plot(x.index, x.rc2, marker="o", color=C["chi2"], lw=1.2, label="Chi-square reference")
     a.axhspan(.03, .07, color="#dddddd", alpha=.6, lw=0); a.axhline(.05, color="black", lw=.6)
-    a.set_xticks(Ks); a.set_xlabel("Number of segments K"); a.set_title(t, loc="left", fontsize=8)
-ax[0].set_ylabel("Type I error rate"); ax[0].legend(frameon=False, fontsize=7)
-fig.tight_layout(); fig.savefig(os.path.join(F, "Figure_3.png"), dpi=DPI); plt.close(fig)
+    a.set_xticks(Ks); a.set_xlabel("Number of segments $K$"); a.set_title(t, loc="left", fontsize=8)
+ax[0].set_ylabel("Type I error rate"); ax[0].set_yticks([i / 10 for i in range(8)])
+h, l = ax[0].get_legend_handles_labels()
+fig.legend(h, l, loc="lower center", ncol=2, frameon=False, fontsize=7, bbox_to_anchor=(0.5, 0.0))  # one legend for both panels
+fig.tight_layout(rect=[0, 0.09, 1, 1]); fig.savefig(os.path.join(F, "Figure_3.png"), dpi=DPI); plt.close(fig)
 
-# Figure 4: power by K at N = 1,000, rho = 0.4, with standard tests as reference lines
+# Figure 4: power by K at N = 1000, rho = 0.4, with standard tests as reference lines
 fig, ax = plt.subplots(1, 3, figsize=(6.3, 2.5), sharey=True)
 for a, p, t in zip(ax, "BCD", ["(a) Growing scatter", "(b) S-shaped curve", "(c) Top quarter only"]):
     x = r[(r.pattern == p) & (r.n == 1000) & (r.rho == .4)].set_index("K")
-    a.plot(x.index, x.rb, marker="s", color=C["boot"], lw=1.3, label="K-segment test")
-    a.axhline(x.r_bp.mean(), color=C["bp"], ls="--", lw=1, label="Breusch–Pagan")
-    a.axhline(x.r_reset3.mean(), color=C["reset3"], ls=":", lw=1.2, label="RESET")
-    a.set_ylim(0, 1.03); a.set_xticks(Ks); a.set_xlabel("Number of segments K"); a.set_title(t, loc="left", fontsize=8)
-ax[0].set_ylabel("Power"); ax[0].legend(frameon=False, fontsize=6.5, loc="lower left")
-fig.tight_layout(); fig.savefig(os.path.join(F, "Figure_4.png"), dpi=DPI); plt.close(fig)
+    a.plot(x.index, x.rb, marker="s", ms=4.5, color=C["boot"], lw=1.3, label="K-segment test", zorder=2)
+    a.axhline(x.r_bp.mean(), color=C["bp"], ls="--", lw=1.1, label="Breusch\u2013Pagan", zorder=3)
+    a.axhline(x.r_reset3.mean(), color=C["reset3"], ls=":", lw=1.4, label="RESET", zorder=4)
+    a.set_ylim(0, 1.03); a.set_xticks(Ks); a.set_xlabel("Number of segments $K$"); a.set_title(t, loc="left", fontsize=8)
+ax[0].set_ylabel("Power")
+h, l = ax[0].get_legend_handles_labels(); l[0] = "$K$-segment test"
+fig.legend(h, l, loc="lower center", ncol=3, frameon=False, fontsize=7, bbox_to_anchor=(0.5, 0.0))  # one legend for all panels
+fig.tight_layout(rect=[0, 0.09, 1, 1]); fig.savefig(os.path.join(F, "Figure_4.png"), dpi=DPI); plt.close(fig)
 print("figures saved")
